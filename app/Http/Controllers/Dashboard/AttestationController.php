@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Dashboard;
 use Illuminate\Http\Request;
 use App\Models\Dashboard\{
     Attestation,
-    Contract
+    Contract,
+    Member
 };
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreUpdateAttestation;
 
 class AttestationController extends Controller
 {
@@ -21,53 +23,29 @@ class AttestationController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \App\Http\Requests\StoreUpdateMember  $request
+     * @param  \App\Http\Requests\StoreUpdateAttestation  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(StoreUpdateMember $request)
+    public function store(StoreUpdateAttestation $request)
     {
-        if (!$contract = Contract::where('cnpj', $request->cnpj)->first())
+        if (!$contract = Contract::where('cnpj', $request->cnpj_attestation)->first())
             return redirect()->route('home')->with('error', 'Contrato não existe ou CNPJ inválido.');
 
-        if ($member = $this->repository->where([['cpf', $request->cpf], ['contract_id', $contract->id]])->first())
-            return redirect()->route('home')->with('error', 'Usuário já foi registrado nesse contrato.');
+        if(!$member = Member::find($request->pacient)->where('contract_id', $contract->id)->first())
+            return redirect()->route('home')->with('error', 'Usuário não existe nesse contrato.');
 
-        $data = $request->all();
-        $data['contract_id'] = $contract->id;
-        $this->repository->create($data);
+        $this->repository->create([
+            'contract_id' => $contract->id,
+            'pacient_id' => $member->id,
+            'companion' => $request->companion,
+            'demise' => $request->demise,
+            'attestation_id' => $request->attestation_id
+        ]);
 
-        return redirect()->route('home')->with('success', 'Usuário criado com sucesso.');
+        return redirect()->route('home')->with('success', 'Atestado inserido com sucesso!');
 
     }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \App\Http\Requests\StoreUpdateMember  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(StoreUpdateMember $request, $id)
-    {
-        if ($user = $this->repository->where($id)->first())
-            return redirect()->route('home')->with('error', 'Usuário já foi registrado nesse contrato.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy($id)
-    {
-        if(!$member = $this->repository->find($id))
-            return redirect()->route('home')->with('error', 'Usuário não encontrado.');
-
-        $member->delete();
-        return redirect()->route('home')->with('success', 'Usuário deletado com sucesso!');
-    }
-
+    
     /**
      * Search members.
      * 
@@ -76,13 +54,11 @@ class AttestationController extends Controller
      */
     public function search(Request $request)
     {
-        $search = $this->repository->search($request->all());
-        if($search['error'])
-            return redirect()->route('home')->with('error', 'Usuário não encontrado ou CNPJ inválido.');
+        if (!$contract = Contract::where('cnpj', $request->cnpj)->with('members')->first())
+            return redirect()->route('home')->with('error', 'Contrato não existe ou CNPJ inválido.');
 
         return view('dashboard', [
-            'memberData' => $search,
-            'filters' => $request->except("_token")
+            'contractDta' => $contract
         ]);
     }
 }

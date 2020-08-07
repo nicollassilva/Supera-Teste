@@ -41,4 +41,10 @@ Route::group([
      */
     Route::resource('members', 'MemberController');
     Route::any('home/members/search', 'MemberController@search')->name('members.search');
+
+    /**
+     * Attestation Routes
+     */
+    Route::resource('attestations', 'AttestationController');
+    Route::any('home/attestations/search', 'AttestationController@search')->name('attestations.search');
 });
